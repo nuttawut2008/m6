@@ -1,0 +1,16 @@
+#define Apin A0
+void setup()
+{
+  pinMode(Apin, INPUT);
+  Serial.begin(9600);
+}
+
+void loop()
+{
+ int value =analogRead(Apin);
+  Serial.println(value);
+  float tmp=map(value,20,358,-40,125);
+    Serial.println(tmp);
+  delay(1000);
+                      
+}
