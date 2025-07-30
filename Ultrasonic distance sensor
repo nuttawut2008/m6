@@ -1,0 +1,61 @@
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(1, 2, 4, 5, 6, 7); 
+
+const int trigPin = 9;
+const int echoPin = 10;
+const int buzzerPin = 8;  // กำหนดขาบัซเซอร์ (เปลี่ยนตามจริง)
+
+long duration;
+float distanceCm, distanceInch;
+
+void setup() {
+  lcd.begin(16, 2);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+}
+
+void loop() {
+  // ส่งสัญญาณ Ultrasonic pulse
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // อ่านค่าระยะเวลา echo pulse
+  duration = pulseIn(echoPin, HIGH);
+
+  // คำนวณระยะทาง
+  distanceCm = duration * 0.034 / 2;
+  distanceInch = duration * 0.0133 / 2;
+
+  // แสดงผลบน LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Distance:       ");
+  lcd.setCursor(10, 0);
+  lcd.print(distanceCm, 1);
+  lcd.print("cm");
+
+  lcd.setCursor(0, 1);
+  
+  if(distanceCm > 0 && distanceCm < 10) {
+    lcd.print("!!! TOO CLOSE !!!");  // ข้อความเตือน
+    // เล่นเสียงเตือน 3 ครั้ง
+    for(int i = 0; i < 3; i++) {
+      tone(buzzerPin, 1000);  // 1000 Hz
+      delay(200);
+      noTone(buzzerPin);
+      delay(200);
+    }
+  } else {
+    lcd.print("Distance:       ");
+    lcd.setCursor(10, 1);
+    lcd.print(distanceInch, 1);
+    lcd.print("in ");
+    digitalWrite(buzzerPin, LOW);
+  }
+
+  delay(500);
+}
