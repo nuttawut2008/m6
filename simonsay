@@ -1,12 +1,22 @@
 #include <LiquidCrystal_I2C.h>
-LiquidCrystal_I2C lcd(0x27,16,2); // LCD I2C address 0x27, size 16x2
+#include <Adafruit_NeoPixel.h>
 
+// --------------------------- LCD ---------------------------
+LiquidCrystal_I2C lcd(0x27,16,2); // I2C Address 0x27, LCD 16x2
+
+// --------------------------- Neopixel ---------------------------
+#define NEO_PIN 6
+#define NEO_COUNT 8
+Adafruit_NeoPixel ring(NEO_COUNT, NEO_PIN, NEO_GRB + NEO_KHZ800);
+
+// --------------------------- Button / LED / Buzzer ---------------------------
 int buttons[4] = {2, 3, 4, 5};
 int leds[4] = {8, 9, 10, 11};
-
 boolean button[4] = {0, 0, 0, 0};
 
 #define buzzer 7
+
+// --------------------------- Notes ---------------------------
 #define NOTE_C4  262
 #define NOTE_CS4 277
 #define NOTE_D4  294
@@ -35,6 +45,7 @@ boolean button[4] = {0, 0, 0, 0};
 #define NOTE_D6  1175
 #define NOTE_E6  1319
 
+// --------------------------- Game Variables ---------------------------
 #define levelsInGame 50
 int bt_simonSaid[100];
 int led_simonSaid[100];
@@ -42,8 +53,10 @@ int led_simonSaid[100];
 boolean lost;
 int game_play, level, stage;
 
+// --------------------------- Setup ---------------------------
 void setup() {
   Serial.begin(9600);
+
   for(int i=0; i<4; i++) {
     pinMode(buttons[i], INPUT_PULLUP);
     pinMode(leds[i], OUTPUT);
@@ -55,11 +68,46 @@ void setup() {
   lcd.setCursor(0,0);
   lcd.print("   Welcome To   ");
   lcd.setCursor(0,1);
-  lcd.print("RNA Memory Hero");
+  lcd.print("SimonSay Game");
   delay(2000);
   lcd.clear();
 
+  ring.begin();
+  ring.show(); // ปิดไฟทั้งหมดก่อนเริ่ม
+
   randomSeed(analogRead(0));
+}
+
+// --------------------------- Neopixel Effect ---------------------------
+void neoShowColor(uint8_t r, uint8_t g, uint8_t b, int delayTime = 20) {
+  for(int i=0; i<NEO_COUNT; i++) {
+    ring.setPixelColor(i, ring.Color(r, g, b));
+    ring.show();
+    delay(delayTime);
+  }
+}
+
+void neoClear() {
+  ring.clear();
+  ring.show();
+}
+
+void neoRainbow(int wait) {
+  for(long firstPixelHue = 0; firstPixelHue < 5*65536; firstPixelHue += 256) {
+    for(int i=0; i<ring.numPixels(); i++) {
+      int pixelHue = firstPixelHue + (i * 65536L / ring.numPixels());
+      ring.setPixelColor(i, ring.gamma32(ring.ColorHSV(pixelHue)));
+    }
+    ring.show();
+    delay(wait);
+  }
+}
+
+// --------------------------- Sound & Display ---------------------------
+void playBuzzer(int x) {
+  tone(buzzer, 650+(x*100));
+  delay(300);
+  noTone(buzzer);
 }
 
 void playMelodyStep(int note, int duration) {
@@ -104,8 +152,12 @@ void playExcitingTheme() {
     if (melody[i] != 0) tone(buzzer, melody[i], durations[i]);
     int randomLed = random(0, 4);
     digitalWrite(leds[randomLed], HIGH);
+    ring.setPixelColor(randomLed*2, ring.Color(0,0,255));
+    ring.show();
     delay(durations[i]);
     digitalWrite(leds[randomLed], LOW);
+    ring.clear();
+    ring.show();
     noTone(buzzer);
     delay(10);
   }
@@ -114,12 +166,15 @@ void playExcitingTheme() {
 void excitementEffect() {
   for (int i=0; i<3; i++) {
     for (int j=0; j<4; j++) digitalWrite(leds[j], HIGH);
+    neoShowColor(0,255,0);
     tone(buzzer, 1000, 150);
     delay(150);
     for (int j=0; j<4; j++) digitalWrite(leds[j], LOW);
+    neoShowColor(255,0,0);
     tone(buzzer, 600, 150);
     delay(150);
   }
+  neoClear();
   noTone(buzzer);
 }
 
@@ -131,6 +186,9 @@ void showScore(int score) {
       lcd.print("!!! SCORE !!!");
       lcd.setCursor(0,1);
       lcd.print(score);
+      neoShowColor(255,255,0);
+    } else {
+      neoClear();
     }
     for(int j = 0; j < 4; j++) {
       digitalWrite(leds[j], (i % 2 == 0) ? HIGH : LOW);
@@ -140,16 +198,20 @@ void showScore(int score) {
   }
   noTone(buzzer);
   for(int j = 0; j < 4; j++) digitalWrite(leds[j], LOW);
+  neoClear();
   delay(300);
 }
 
+// --------------------------- Main Loop ---------------------------
 void loop() {
   switch(stage) {
     case 0:
       lcd.setCursor(0, 0); lcd.print("Press Red Button");
       lcd.setCursor(0, 1); lcd.print(" for Start Game ");
+      neoShowColor(0, 0, 255); // แสดงสีฟ้าขณะรอ
       while (digitalRead(buttons[0]) == HIGH) playExcitingTheme();
       level = 1; stage = 1; game_play = 1;
+      neoClear();
       break;
 
     case 1:
@@ -157,7 +219,9 @@ void loop() {
       lcd.clear();
       lcd.setCursor(4,0); lcd.print("Level: "); lcd.print(level);
       lcd.setCursor(0,1); lcd.print(" -- Memorize -- ");
+      neoShowColor(0,255,0);
       delay(1500);
+      neoClear();
       int newLed;
       do {
         newLed = random(0, 4);
@@ -165,8 +229,11 @@ void loop() {
       led_simonSaid[level] = newLed;
       for(int i=1; i<=level; i++) {
         digitalWrite(leds[led_simonSaid[i]], HIGH);
+        ring.setPixelColor(i*2 % NEO_COUNT, ring.Color(0, 255, 255));
+        ring.show();
         playBuzzer(led_simonSaid[i]+1);
         digitalWrite(leds[led_simonSaid[i]], LOW);
+        neoClear();
         delay(400);
       }
       delay(500);
@@ -183,10 +250,13 @@ void loop() {
         if(digitalRead(buttons[i]) == LOW){
           bt_simonSaid[game_play] = i;
           digitalWrite(leds[i], HIGH);
+          ring.setPixelColor(i*2, ring.Color(255, 255, 255));
+          ring.show();
           playBuzzer(i+1);
           while(digitalRead(buttons[i]) == LOW);
           delay(50);
           digitalWrite(leds[i], LOW);
+          neoClear();
           game_play++;
           if(game_play-1==level){
             game_play=1;
@@ -214,12 +284,14 @@ void loop() {
     case 5:
       lcd.setCursor(0, 1); lcd.print(" !! You Lost !! ");
       tone(buzzer, 350);
+      neoShowColor(255,0,0);
       for(int i=0; i<4; i++) digitalWrite(leds[i], HIGH);
       delay(1000);
       lcd.setCursor(0, 1); lcd.print("!! GAME  OVER !!");
       noTone(buzzer);
       delay(1000);
       for(int i=0; i<4; i++) digitalWrite(leds[i], LOW);
+      neoClear();
       level=1; stage=0; lost=0;
       break;
 
@@ -227,23 +299,20 @@ void loop() {
       excitementEffect();
       showScore(level);
       lcd.setCursor(0, 1); lcd.print(" ** You  Win ** ");
+      neoRainbow(5);
       delay(1000);
       if(level == levelsInGame){
         lcd.setCursor(0, 0); lcd.print("Congratulation");
         lcd.setCursor(0, 1); lcd.print(" Level Complete");
+        neoRainbow(5);
         delay(1000);
         lcd.clear();
         level = 1;
       } else {
         level++;
       }
+      neoClear();
       stage = 1;
       break;
   }
-}
-
-void playBuzzer(int x) {
-  tone(buzzer, 650+(x*100));
-  delay(300);
-  noTone(buzzer);
 }
