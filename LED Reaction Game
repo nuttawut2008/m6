@@ -1,0 +1,143 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+const int ledPins[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+const int redLedIndex = 5;  // 🔴 LED สีแดงอยู่ตำแหน่งที่ 6 (พิน 7)
+const int buttonPin = A1;
+const int buzzerPin = A2;
+
+int totalLeds = 12;
+int currentLed = 0;
+bool gamePaused = false;
+
+int score = 0;
+int highScore = 0;
+int speed = 200;
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+  for (int i = 0; i < totalLeds; i++) {
+    pinMode(ledPins[i], OUTPUT);
+  }
+
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
+
+  lcd.init();
+  lcd.backlight();
+  showWelcome();
+
+  delay(1000);
+  startGame();
+}
+
+void loop() {
+  if (!gamePaused) {
+    turnOffAllLeds();
+
+    digitalWrite(ledPins[currentLed], HIGH);
+    delay(speed);
+
+    if (digitalRead(buttonPin) == LOW) {
+      gamePaused = true;
+      delay(200);
+      checkResult();
+    }
+
+    currentLed = (currentLed + 1) % totalLeds;
+  }
+}
+
+void checkResult() {
+  if (currentLed == redLedIndex) {  
+    // ✔ เช็กตำแหน่ง LED สีแดงที่ถูกต้อง
+    happyBeep();
+    score++;
+    if (score > highScore) highScore = score;
+
+    if (speed > 50) speed -= 10; // เพิ่มความเร็ว
+  } else {
+    sadBeep();
+    score = 0;
+    speed = 200;
+  }
+
+  updateScoreDisplay();
+  delay(2000);
+  startGame();
+  gamePaused = false;
+}
+
+void happyBeep() {
+  tone(buzzerPin, 1000, 200);
+  delay(250);
+  tone(buzzerPin, 1500, 200);
+  delay(250);
+  noTone(buzzerPin);
+}
+
+void sadBeep() {
+  tone(buzzerPin, 400, 400);
+  delay(450);
+  noTone(buzzerPin);
+}
+
+void turnOffAllLeds() {
+  for (int i = 0; i < totalLeds; i++) {
+    digitalWrite(ledPins[i], LOW);
+  }
+}
+
+void showWelcome() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("LED RED STOP!");
+  lcd.setCursor(0, 1);
+  lcd.print("Ready?");
+  startSound();
+  flashLeds();
+}
+
+void startSound() {
+  tone(buzzerPin, 800, 150);
+  delay(200);
+  tone(buzzerPin, 1000, 150);
+  delay(200);
+  tone(buzzerPin, 1200, 150);
+  delay(200);
+  noTone(buzzerPin);
+}
+
+void flashLeds() {
+  for (int i = 0; i < 3; i++) {
+    turnOnAllLeds();
+    delay(200);
+    turnOffAllLeds();
+    delay(200);
+  }
+}
+
+void turnOnAllLeds() {
+  for (int i = 0; i < totalLeds; i++) {
+    digitalWrite(ledPins[i], HIGH);
+  }
+}
+
+void updateScoreDisplay() {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Score: ");
+  lcd.print(score);
+
+  lcd.setCursor(0, 1);
+  lcd.print("High: ");
+  lcd.print(highScore);
+}
+
+void startGame() {
+  updateScoreDisplay();
+  flashLeds();
+  startSound();
+  currentLed = 0;
+}
