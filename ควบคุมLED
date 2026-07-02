@@ -1,0 +1,33 @@
+#define LED1 13
+#define LED2 12
+#define SW1 10
+#define SW2 9
+void setup()
+{
+  pinMode(LED1, OUTPUT);
+  pinMode(LED2, OUTPUT);
+  pinMode(SW1, INPUT);
+  pinMode(SW2, INPUT);
+}
+
+void loop()
+{
+  int sw1State = digitalRead(SW1);
+  if(sw1State==LOW){
+     digitalWrite(LED1, HIGH);
+  }
+  else{
+    digitalWrite(LED1, LOW);
+  }
+  
+  int sw2State = digitalRead(SW2);
+  if(sw2State==LOW){
+     digitalWrite(LED2, HIGH);
+  }
+  else{
+    digitalWrite(LED2, LOW);
+  }
+  delay(10);
+  
+}
+
